@@ -1,0 +1,63 @@
+#include <nRF24L01.h>
+#include <printf.h>
+#include <RF24.h>
+#include <RF24_config.h>
+#include <SPI.h>
+#include <LiquidCrystal_I2C.h>
+RF24 radio(9, 10);
+const uint64_t pipe = 0xE8E8F0F0E1LL;
+#define Stic_X A0
+#define Stic_Y A1
+#define Stic_Batton A2
+#define RST_Batton 6
+#define Programm_Batton 4
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+void setup() {
+lcd.begin(16,2);
+pinMode(Stic_X,INPUT);
+pinMode(Stic_Y,INPUT);
+pinMode(Stic_Batton,INPUT);
+pinMode(RST_Batton,INPUT);
+pinMode(Programm_Batton,INPUT);
+Serial.begin(9600);
+radio.begin();
+radio.setPALevel(RF24_PA_LOW);
+radio.setDataRate(RF24_250KBPS);
+radio.openWritingPipe(pipe);
+radio.openReadingPipe(1, pipe);
+radio.stopListening();
+}
+void loop() {
+lcd.backlight();
+radio.startListening();
+delay(20);
+if(radio.available()){
+int command;
+int buffer[32];
+uint8_t len = radio.getPayloadSize();
+radio.read(buffer, len);
+for(uint8_t i = 0; i < 3; i++){Serial.print((int)buffer[i]);}
+Serial.print(buffer[0]), Serial.print(" "), Serial.print(buffer[1]);
+Serial.println();
+lcd.setCursor(0,0), lcd.print("X=");
+lcd.setCursor(2,0), lcd.print(buffer[0]);
+lcd.setCursor(0,1), lcd.print("Y=");
+lcd.setCursor(2,1), lcd.print(buffer[1]);}
+
+
+uint8_t text = ".";;
+if(analogRead(Stic_X) > 750){text = '6';}
+else if(analogRead(Stic_X) < 250){text = '4';}
+else if(analogRead(Stic_Y) > 750){text = '8';}
+else if(analogRead(Stic_Y) < 250){text = '2';}
+else if(digitalRead(Stic_Batton)== LOW){text = '0';}
+else if(digitalRead(RST_Batton) == HIGH){text = '1';}
+else if(digitalRead(Programm_Batton) == HIGH){text = '3';}
+else if(Serial.available()){text = Serial.read();}
+else{text = '.';}
+delay(300);
+if(text != '.'){
+radio.stopListening();
+delay(20);
+uint8_t buffer[] = {text};
+radio.write(&buffer, strlen((char*)buffer));}}

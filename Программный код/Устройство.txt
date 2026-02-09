@@ -1,0 +1,124 @@
+#include <nRF24L01.h>   
+#include <printf.h>
+#include <RF24.h>
+#include <RF24_config.h>
+#include <SPI.h>
+#include <Servo.h>
+#include <LiquidCrystal_I2C.h>
+#define Lazer A5
+#define Led 8
+#define RST 2
+Servo myservoX;
+Servo myservoY;
+int X = 84;
+int Y = 21;
+int X0 = 84;
+int Y0 = 11;
+int Znak = 1;
+int Xmax = 110;
+int Xmin = 60;
+int Ymax = 180;
+int Ymin = 0;
+int Shag = 1;
+RF24 radio(9, 10);
+const uint64_t pipe = 0xE8E8F0F0E1LL;
+uint8_t buffer[32];
+void setup() {
+digitalWrite(RST,HIGH);
+pinMode(Lazer,OUTPUT);
+pinMode(Led,OUTPUT);
+pinMode(RST,OUTPUT);
+Serial.begin(9600);
+radio.begin();
+radio.setPALevel(RF24_PA_LOW);
+radio.setDataRate(RF24_250KBPS);
+radio.openReadingPipe(1, pipe);
+radio.openWritingPipe(pipe);
+radio.startListening();
+myservoX.attach(A0);
+myservoY.attach(A1);
+
+myservoX.write(X0);
+delay(20);
+myservoY.write(Y0);
+delay(20);
+}
+void loop(){
+digitalWrite(RST,HIGH);
+radio.startListening();
+delay(20);
+uint8_t command;
+digitalWrite(Lazer,HIGH);
+
+if(radio.available()){
+digitalWrite(Led,HIGH);
+uint8_t len = radio.getPayloadSize();
+radio.read(buffer, len);
+for(uint8_t i = 0; i < len; i++){Serial.println((char)buffer[i]);}
+command = buffer[0];
+Serial.println(command);
+if(command == '3'){//горизонтальный скан
+myservoX.write(108), delay(1400), myservoY.write(Y0), delay(1400);//1
+myservoX.write(101), delay(1400), myservoY.write(Y0), delay(1400);//2
+myservoX.write(95), delay(1400), myservoY.write(Y0-2), delay(1400);//3
+myservoX.write(90), delay(1400), myservoY.write(Y0-2), delay(1400);//4
+myservoX.write(X0), delay(1400), myservoY.write(Y0), delay(1400);//5
+myservoX.write(79), delay(1400), myservoY.write(Y0-3), delay(1400);//6
+myservoX.write(74), delay(1400), myservoY.write(Y0-3), delay(1400);//7
+myservoX.write(69), delay(1400), myservoY.write(Y0-3), delay(1400);//8
+myservoX.write(66), delay(1400), myservoY.write(Y0 -3), delay(1400);//9
+//вертикальный скан
+myservoX.write(70), delay(1400), myservoY.write(55), delay(1400);//18
+myservoX.write(83), delay(1400), myservoY.write(36), delay(1400);//17
+myservoX.write(81), delay(1400), myservoY.write(28), delay(1400);//16
+myservoX.write(80), delay(1400), myservoY.write(19), delay(1400);//15
+myservoX.write(83), delay(1400), myservoY.write(11), delay(1400);//5
+myservoX.write(80), delay(1400), myservoY.write(-19), delay(1400);//10
+myservoX.write(50), delay(1400), myservoY.write(-28), delay(1400);//11
+myservoX.write(50), delay(1400), myservoY.write(-36), delay(1400);//12
+myservoX.write(50), delay(1400), myservoY.write(-55), delay(1400);//13
+//
+myservoX.write(108-10), delay(1400), myservoY.write(55), delay(1400);//22
+myservoX.write(101-10), delay(1400), myservoY.write(36), delay(1400);//21
+myservoX.write(93-10), delay(1400), myservoY.write(28), delay(1400);//20
+myservoX.write(88-10), delay(1400), myservoY.write(19), delay(1400);//19
+myservoX.write(X0-10), delay(1400), myservoY.write(Y0), delay(1400);//5
+myservoX.write(79-10), delay(1400), myservoY.write(-19), delay(1400);//31
+myservoX.write(74), delay(1400), myservoY.write(-28), delay(1400);//32
+myservoX.write(68), delay(1400), myservoY.write(-36), delay(1400);//33
+myservoX.write(66), delay(1400), myservoY.write(-55), delay(1400);//34
+//диагональ
+myservoX.write(108), delay(1400), myservoY.write(-55), delay(1400);//26
+myservoX.write(101), delay(1400), myservoY.write(-36), delay(1400);//25
+myservoX.write(93), delay(1400), myservoY.write(-28), delay(1400);//24
+myservoX.write(88), delay(1400), myservoY.write(-19), delay(1400);//23
+myservoX.write(X0), delay(1400), myservoY.write(Y0), delay(1400);//5
+myservoX.write(77), delay(1400), myservoY.write(19), delay(1400);//27
+myservoX.write(72), delay(1400), myservoY.write(28+5), delay(1400);//28
+myservoX.write(66), delay(1400), myservoY.write(36+10), delay(1400);//29
+myservoX.write(60), delay(1400), myservoY.write(55+10), delay(1400);//30
+
+}
+if(command == '0'){X = X0, Y = Y0;}
+if(command == '4'){X = X - Shag;}
+if(command == '6'){X = X + Shag;}
+if(command == '2'){Y = Y - Shag;}
+if(command == '8'){Y = Y + Shag;}
+if(command == '1'){digitalWrite(RST,LOW);}
+if(Y > Ymax){Y = Ymax;}
+  if(Y < Ymin){Y = Ymin;}
+  if(X > Xmax){X = Xmax;}
+  if(X < Xmin){X = Xmin;}
+
+digitalWrite(Led,LOW);
+digitalWrite(Lazer,LOW);
+myservoX.write(X0), delay(100), myservoY.write(Y0), delay(100);
+myservoX.write(X);
+delay(100);
+myservoY.write(Y);
+delay(100);
+
+radio.stopListening();
+delay(20);
+int buffer[] = {X, Y};
+radio.write(&buffer, sizeof(buffer));}}
